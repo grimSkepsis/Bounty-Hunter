@@ -44,3 +44,11 @@ Temporary Items
 #our stuffs
 Temp/
 Library/
+
+# For Unity Visual Studio
+Assets/UnityVS/
+Assets/UnityVS.*
+obj/
+*.sln
+*.csproj
+*.suo
