@@ -26,6 +26,9 @@ public class MovementController : MonoBehaviour {
     [SerializeField]
     public float baseJumpSpeed;
 
+    [SerializeField]
+    public float airMoveAccel;
+
     /* Major movement values: may not want these to be the same b/w player and ai */
     private float gravityAccel = 9.8f;
 
@@ -56,20 +59,15 @@ public class MovementController : MonoBehaviour {
     void Update() {
         standingBase = GetGround();
 
-        // Accelerate toward ground if not on the ground
-        if(!bIsOnGround) {
-            velocity.y += -gravityAccel * Time.deltaTime;
-        }
-
         // Get the base move step, and then modify it and resolve collisions
         Vector3 moveDelta = velocity * Time.deltaTime;
 
-        if(moveDelta.x != 0.0f) {
-            moveDelta = HorizontalMove(moveDelta);
-        }
-
-        if(moveDelta.y != 0.0f) {
-            moveDelta = VerticalMove(moveDelta);
+        moveDelta = HorizontalMove(moveDelta);
+        moveDelta = VerticalMove(moveDelta);
+        
+        // Accelerate toward ground if not on the ground
+        if(!bIsOnGround) {
+            velocity.y += -gravityAccel * Time.deltaTime;
         }
 
         transform.position += moveDelta;
@@ -86,8 +84,10 @@ public class MovementController : MonoBehaviour {
         if(bIsOnGround) {
             velocity.x = xAmplitude * baseMoveSpeed;
         }
+        else {
+            velocity.x = Mathf.Lerp(velocity.x, xAmplitude * baseMoveSpeed, airMoveAccel * Time.deltaTime);
+        }
     }
-
 
 
     public void Jump() {
@@ -99,7 +99,15 @@ public class MovementController : MonoBehaviour {
 
 
     public GameObject GetGround() {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(groundDetectionLocation.position, 0.01f, groundLayers);
+        Vector2 topLeft = new Vector2(groundDetectionLocation.position.x - bodyCollider.size.x / 2.0f + skinWidth, groundDetectionLocation.position.y + 0.05f);
+        Vector2 bottomRight = new Vector2(groundDetectionLocation.position.x + bodyCollider.size.x / 2.0f - skinWidth, groundDetectionLocation.position.y - 0.05f);
+
+        Collider2D[] hits = Physics2D.OverlapAreaAll(topLeft, bottomRight, groundLayers);
+
+#if debug_draw
+        Debug.DrawLine(groundDetectionLocation.position, (Vector3)topLeft, Color.red);
+        Debug.DrawLine(groundDetectionLocation.position, (Vector3)bottomRight, Color.green);
+#endif
 
         // did we hit (not ourselves)?
         if(hits.Length > 0) {
@@ -122,6 +130,7 @@ public class MovementController : MonoBehaviour {
         // Get the top and bottom corners on the side that its moving
         Vector3 top = GetHeadCorner(moveDelta.x < 0.0f);
         Vector3 bottom = GetFootCorner(moveDelta.x < 0.0f);
+        Vector3 mid = top + ((bottom - top) / 2.0f);
 
         Vector3 horzeDelta = moveDelta;
         horzeDelta.y = 0.0f;
@@ -131,10 +140,12 @@ public class MovementController : MonoBehaviour {
         List<RaycastHit2D> raysToCheck = new List<RaycastHit2D>();
         raysToCheck.Add(Physics2D.Raycast(top, horzeDelta.normalized, horzRayCastDistance));
         raysToCheck.Add(Physics2D.Raycast(bottom, horzeDelta.normalized, horzRayCastDistance));
+        raysToCheck.Add(Physics2D.Raycast(mid, horzeDelta.normalized, horzRayCastDistance));
 
 #if debug_draw
-        Debug.DrawLine(top, top + horzeDelta.normalized * horzRayCastDistance, Color.red, 0);
-        Debug.DrawLine(bottom, bottom + horzeDelta.normalized * horzRayCastDistance, Color.red, 0);
+        Debug.DrawLine(top, top + horzeDelta.normalized * horzRayCastDistance, Color.yellow, 0);
+        Debug.DrawLine(bottom, bottom + horzeDelta.normalized * horzRayCastDistance, Color.yellow, 0);
+        Debug.DrawLine(mid, mid + horzeDelta.normalized * horzRayCastDistance, Color.yellow, 0);
 #endif
 
         bool collided = false;
@@ -143,10 +154,10 @@ public class MovementController : MonoBehaviour {
         // check the horizontal rays and limit horizontal velocity
         int idx = 0;
         foreach(RaycastHit2D ray in raysToCheck) {
-            if(ray && !ray.collider.isTrigger) {
-                moveDelta.x = (new Vector3(ray.point.x, ray.point.y, 0.0f) - bottom).x;
+            if(ray && !ray.collider.isTrigger && ray.collider.gameObject != owner.gameObject) {
+                moveDelta.x = ((Vector3)ray.point - bottom).x;
 
-                moveDelta.x -= moveDelta.normalized.x * skinWidth;
+                moveDelta.x -= Mathf.Sign(moveDelta.x) * skinWidth;
 
                 collided = true;
                 successfulHit = idx;
@@ -169,11 +180,11 @@ public class MovementController : MonoBehaviour {
         // do different cast depending on if were moving up or down
         Vector3 vertDelta = moveDelta;
         vertDelta.x = 0.0f;
-        float vertRayCastDistance = vertDelta.magnitude;
+        float vertRayCastDistance = vertDelta.magnitude + skinWidth;
         Vector3 left;
         Vector3 right;
 
-        if(moveDelta.y < 0.0f) {
+        if(moveDelta.y <= 0.0f) {
             // Moving down, main case
             left = GetFootCorner(true);
             right = GetFootCorner(false);
@@ -190,8 +201,8 @@ public class MovementController : MonoBehaviour {
 
 #if debug_draw
         // DEBUG MOVEMENT
-        Debug.DrawLine(left, left + vertDelta.normalized * vertRayCastDistance, Color.yellow, 0);
-        Debug.DrawLine(right, right + vertDelta.normalized * vertRayCastDistance, Color.yellow, 0);
+        Debug.DrawLine(left, left + vertDelta.normalized * vertRayCastDistance, Color.white, 0);
+        Debug.DrawLine(right, right + vertDelta.normalized * vertRayCastDistance, Color.white, 0);
 #endif
 
         bool collided = false;
@@ -200,10 +211,10 @@ public class MovementController : MonoBehaviour {
         // check the horizontal rays and limit horizontal velocity to move right up to the collision point
         int idx = 0;
         foreach(RaycastHit2D ray in raysToCheck) {
-            if(ray && !ray.collider.isTrigger) {
-                moveDelta.y = (new Vector3(ray.point.x, ray.point.y, 0.0f) - left).y;
+            if(ray && !ray.collider.isTrigger && ray.collider.gameObject != owner.gameObject) {
+                moveDelta.y = ((Vector3)ray.point - left).y;
 
-                moveDelta.y -= moveDelta.normalized.y * skinWidth;
+                moveDelta.y -= Mathf.Sign(moveDelta.y) * skinWidth;
 
                 collided = true;
                 successfulHit = idx;
@@ -240,8 +251,8 @@ public class MovementController : MonoBehaviour {
 
     // Get the location of the top corner (left or right based on move left)
     public Vector3 GetHeadCorner(bool bMoveLeft) {
-        float offsetDistX = bodyCollider.size.x / 2.0f + skinWidth;
-        float offsetDistY = bodyCollider.size.y / 2.0f + skinWidth;
+        float offsetDistX = bodyCollider.size.x/2.0f + skinWidth;
+        float offsetDistY = bodyCollider.size.y - skinWidth;
 
         Vector3 center = transform.position + (Vector3)bodyCollider.offset;
         Vector3 toCorner = new Vector3(bMoveLeft? -offsetDistX : offsetDistX, offsetDistY, 0.0f);
@@ -250,7 +261,7 @@ public class MovementController : MonoBehaviour {
 
     // Get the location of the bottom corner (left or right based on move left)
     public Vector3 GetFootCorner(bool bMoveLeft) {
-        float offsetDistX = bodyCollider.size.x / 2.0f + skinWidth;
+        float offsetDistX = bodyCollider.size.x/2.0f + skinWidth;
         float offsetDistY = -bodyCollider.size.y + skinWidth;
 
         Vector3 center = transform.position + (Vector3)bodyCollider.offset;
