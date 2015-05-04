@@ -3,14 +3,19 @@ using System.Collections;
 
 public class PlayerController : ActorController {
 
+    private AbilityManager abilityManager;
+
     protected override void Start() {
         base.Start();
+
+        // Note that it may not have one
+        abilityManager = GetComponent<AbilityManager>();
     }
 
     protected override void Update() {
         base.Update();
 
-        // temporary test movement stuff
+        // basic movement stuff
         float horzInput = Input.GetAxis("Horizontal");
 
         if(Input.GetKeyDown(KeyCode.Space)) {
@@ -18,5 +23,18 @@ public class PlayerController : ActorController {
         }
 
         owner.GetMovementController().Move(horzInput);
+
+        // TEMp ability testing stuff: just 1 to add ability, 2 to remove it
+        if(Input.GetKeyDown(KeyCode.Alpha1)) {
+            if(abilityManager != null) {
+                abilityManager.SetAbilityslot<ASpeedBoots>(AbilityManager.abilitySlot.Slot_Feet);
+            }
+        }
+
+        if(Input.GetKeyDown(KeyCode.Alpha2)) {
+            if(abilityManager != null) {
+                abilityManager.RemoveAbility(AbilityManager.abilitySlot.Slot_Feet);
+            }
+        }
     }
 }

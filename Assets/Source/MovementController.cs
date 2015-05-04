@@ -82,7 +82,11 @@ public class MovementController : MonoBehaviour {
         // TODO: ground friction or what?
 
         if(bIsOnGround) {
-            velocity.x = xAmplitude * baseMoveSpeed;
+            // add in owners speed modifier, if any, otherwise leave it out
+            float speedModifier = owner.GetTotalModifierForStat(Actor.Stat.speed);
+            speedModifier = (speedModifier == 0.0f)? 1.0f : speedModifier;
+
+            velocity.x = xAmplitude * baseMoveSpeed * speedModifier;
         }
         else {
             velocity.x = Mathf.Lerp(velocity.x, xAmplitude * baseMoveSpeed, airMoveAccel * Time.deltaTime);
@@ -99,6 +103,7 @@ public class MovementController : MonoBehaviour {
 
 
     public GameObject GetGround() {
+        // Check the general area below the actor for any ground
         Vector2 topLeft = new Vector2(groundDetectionLocation.position.x - bodyCollider.size.x / 2.0f + skinWidth, groundDetectionLocation.position.y + 0.05f);
         Vector2 bottomRight = new Vector2(groundDetectionLocation.position.x + bodyCollider.size.x / 2.0f - skinWidth, groundDetectionLocation.position.y - 0.05f);
 
@@ -244,7 +249,6 @@ public class MovementController : MonoBehaviour {
             // mostly horizontal surface
             velocity.x = 0.0f;
         }
-
     }
 
 

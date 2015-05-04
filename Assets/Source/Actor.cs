@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 /**
  * Main base class:
@@ -14,6 +15,25 @@ public class Actor : MonoBehaviour {
     public float health;
 
     private float maxHealth;
+
+    // Buff debuff system: NOTE: this is totally an experiment, not sure if it's worth doing it this way
+    public struct StatEffect {
+        public string tag;      // tag identifies where this effect came from so it can be removed specifically
+        public float modifier;  // how much to modify the stat by, may be addition or multiply depending on stat
+        public Stat targetStat; // which stat to effect
+    }
+
+    /* List of all stat modifiers on the actor. this list will be polled for any relevant effects when needed */
+    private List<StatEffect> activeEffects;
+
+    public enum Stat {
+        health, 
+        speed, 
+        armor, 
+        stealth, 
+        shield, 
+        jump
+    }
 
     /*
      * TODO: 
@@ -40,11 +60,13 @@ public class Actor : MonoBehaviour {
 
         // start with full health
         maxHealth = health;
+
+        activeEffects = new List<StatEffect>();
     }
 
 
     void Update() {
-
+        
     }
 
 
@@ -57,5 +79,31 @@ public class Actor : MonoBehaviour {
             health = 0.0f;
             // Died!!!
         }
+    }
+
+
+    public void ApplyStatEffect(Stat targetStat, float modifier, string sourceTag) {
+        StatEffect effect = new StatEffect();
+        effect.tag = sourceTag;
+        effect.modifier = modifier;
+        effect.targetStat = targetStat;
+
+        activeEffects.Add(effect);
+    }
+
+    public void RemoveStatEffect(string sourceTag) {
+        activeEffects.RemoveAll(effect => effect.tag.Equals(sourceTag));
+    }
+
+    public float GetTotalModifierForStat(Stat stat) {
+        float modifier = 0.0f;
+
+        foreach(StatEffect effect in activeEffects) {
+            if(effect.targetStat == stat) {
+                modifier += effect.modifier;
+            }
+        }
+
+        return modifier;
     }
 }
