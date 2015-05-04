@@ -93,9 +93,10 @@ public class AbilityManager : MonoBehaviour {
         // For now it will just get replaced...
 
         if(abilitySet[(int)targetSlot] != null) {
-            // replace!
+            // drop the current ability
         }
 
+        RemoveAbility(targetSlot);
         abilitySet[(int)targetSlot] = new AbilityType();
 
         // Auto activate passive abilities
@@ -106,6 +107,7 @@ public class AbilityManager : MonoBehaviour {
 
     public void RemoveAbility(abilitySlot targetSlot) {
         if(abilitySet[(int)targetSlot] != null) {
+            activeList.Remove(abilitySet[(int)targetSlot]);
             abilitySet[(int)targetSlot].End(owner);
             abilitySet[(int)targetSlot].bActive = false;
 

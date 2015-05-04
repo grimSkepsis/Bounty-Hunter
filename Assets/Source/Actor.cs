@@ -32,7 +32,8 @@ public class Actor : MonoBehaviour {
         armor, 
         stealth, 
         shield, 
-        jump
+        jumpHeight,
+        airJump
     }
 
     /*
@@ -91,6 +92,7 @@ public class Actor : MonoBehaviour {
         activeEffects.Add(effect);
     }
 
+    /* remove all effects whose source is the input tag */
     public void RemoveStatEffect(string sourceTag) {
         activeEffects.RemoveAll(effect => effect.tag.Equals(sourceTag));
     }
@@ -105,5 +107,13 @@ public class Actor : MonoBehaviour {
         }
 
         return modifier;
+    }
+
+    /* treats modifier as a bonus multiplier.
+     * Returns the total modifier for a stat, unless there is no modifiers, in which case it returns 1.0f 
+     */
+    public float GetMultiplierForStat(Stat stat) {
+        float total = GetTotalModifierForStat(stat);
+        return (total == 0.0f)? 1.0f : total;
     }
 }

@@ -42,6 +42,9 @@ public class MovementController : MonoBehaviour {
     /* If its ont he ground then that means last update it found a floor nearby */
     private bool bIsOnGround;
 
+    /* Jump counter since last ground touch */
+    private int numAirJumps;
+
     /* game object that controller is standing on, will be null if in air */
     private GameObject standingBase;
 
@@ -69,6 +72,9 @@ public class MovementController : MonoBehaviour {
         if(!bIsOnGround) {
             velocity.y += -gravityAccel * Time.deltaTime;
         }
+        else {
+            numAirJumps = 0;
+        }
 
         transform.position += moveDelta;
     }
@@ -78,25 +84,31 @@ public class MovementController : MonoBehaviour {
      * xAmplitude = the ratio of move speed to be applied as horizonatl movement
      */
     public void Move(float xAmplitude) {
-        // TODO: Modifiers? 
         // TODO: ground friction or what?
 
-        if(bIsOnGround) {
-            // add in owners speed modifier, if any, otherwise leave it out
-            float speedModifier = owner.GetTotalModifierForStat(Actor.Stat.speed);
-            speedModifier = (speedModifier == 0.0f)? 1.0f : speedModifier;
+        // add in owners speed multiplier
+        float speedModifier = owner.GetMultiplierForStat(Actor.Stat.speed);
 
+        if(bIsOnGround) {
             velocity.x = xAmplitude * baseMoveSpeed * speedModifier;
         }
         else {
-            velocity.x = Mathf.Lerp(velocity.x, xAmplitude * baseMoveSpeed, airMoveAccel * Time.deltaTime);
+            velocity.x = Mathf.Lerp(velocity.x, xAmplitude * baseMoveSpeed * speedModifier, airMoveAccel * Time.deltaTime);
         }
     }
 
 
     public void Jump() {
-        if(bIsOnGround) {
-            velocity.y = baseJumpSpeed;
+        bool bCanAirJump = numAirJumps < owner.GetTotalModifierForStat(Actor.Stat.airJump);
+
+        if(bIsOnGround || bCanAirJump) {
+            float jumpModifier = owner.GetMultiplierForStat(Actor.Stat.jumpHeight);
+
+            velocity.y = baseJumpSpeed * jumpModifier;
+
+            if(!bIsOnGround) {
+                numAirJumps++;
+            }
         }
     }
 
