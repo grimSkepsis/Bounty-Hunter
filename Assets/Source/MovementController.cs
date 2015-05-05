@@ -97,6 +97,10 @@ public class MovementController : MonoBehaviour {
         }
     }
 
+    public void SetVelocity(Vector3 vel) {
+        velocity = vel;
+    }
+
 
     public void Jump() {
         bool bCanAirJump = numAirJumps < owner.GetTotalModifierForStat(Actor.Stat.airJump);
