@@ -5,15 +5,32 @@ public class PlayerController : ActorController {
 
     private AbilityManager abilityManager;
 
+    private Camera mainCamera;
+    private PlayerCamera playerCamera;
+
     protected override void Start() {
         base.Start();
 
         // Note that it may not have one
         abilityManager = GetComponent<AbilityManager>();
+
+        playerCamera = FindObjectOfType<PlayerCamera>();
+        if(playerCamera == null) {
+            Debug.LogError(name + " failed to find a PlayerCamera Component in the scene!");
+        }
+        else {
+            mainCamera = playerCamera.GetComponent<Camera>();
+        }
     }
 
     protected override void Update() {
         base.Update();
+
+        // Update the aim location to be the mouse position
+        if(mainCamera != null) {
+            aimLocation = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+            aimLocation.z = 0.0f;
+        }
 
         // basic movement stuff
         float horzInput = Input.GetAxis("Horizontal");
@@ -24,10 +41,14 @@ public class PlayerController : ActorController {
 
         owner.GetMovementController().Move(horzInput);
 
-        // TEMP ability testing stuff: just 1 to add ability, 2 to remove it
+        // TEMP ability testing stuff:
+        if(Input.GetButtonDown("Fire1")) {
+            abilityManager.ActivateAbility(AbilityManager.abilitySlot.Slot_Weapon);
+        }
+
         if(Input.GetKeyDown(KeyCode.Alpha1)) {
             if(abilityManager != null) {
-                abilityManager.SetAbilityslot<ASpeedBoots>(AbilityManager.abilitySlot.Slot_Feet);
+                abilityManager.SetAbilityslot<AGrapplingHook>(AbilityManager.abilitySlot.Slot_Weapon);
             }
         }
 

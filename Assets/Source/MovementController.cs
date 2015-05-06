@@ -4,9 +4,15 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
+/* Part of callback system that allows listerns to register with the movement component to hear about collision events */
+public delegate void CollisionCallback(Vector3 point, Vector3 normal);
+
 [RequireComponent(typeof(Actor))]
 [RequireComponent(typeof(BoxCollider2D))]
 public class MovementController : MonoBehaviour {
+
+    // statics
+    static bool bCollideActors = false;
 
     [SerializeField]
     protected LayerMask groundLayers;
@@ -36,6 +42,9 @@ public class MovementController : MonoBehaviour {
     private Actor owner;
     private BoxCollider2D bodyCollider;
 
+    /* Should gravity be added to vel each frame */
+    private bool bGravityEnabled = true;
+
     /* Main velocity */
     private Vector3 velocity;
 
@@ -48,6 +57,13 @@ public class MovementController : MonoBehaviour {
     /* game object that controller is standing on, will be null if in air */
     private GameObject standingBase;
 
+    private List<CollisionCallback> collisionListeners;
+
+    public void EnableGravity(bool bGrav) { bGravityEnabled = bGrav; }
+
+    // Listeners can register and unregister to receive callback events on collisions that result in a movement resolution
+    public void RegisterCollisionListener(CollisionCallback listner) { collisionListeners.Add(listner); }
+    public void UnRegisterCollisionListener(CollisionCallback listner) { collisionListeners.Remove(listner); }
 
     void Start() {
         owner = GetComponent<Actor>();
@@ -56,6 +72,7 @@ public class MovementController : MonoBehaviour {
         }
 
         bodyCollider = GetComponent<BoxCollider2D>();
+        collisionListeners = new List<CollisionCallback>();
     }
 
 
@@ -64,13 +81,15 @@ public class MovementController : MonoBehaviour {
 
         // Get the base move step, and then modify it and resolve collisions
         Vector3 moveDelta = velocity * Time.deltaTime;
-
+        
         moveDelta = HorizontalMove(moveDelta);
         moveDelta = VerticalMove(moveDelta);
         
         // Accelerate toward ground if not on the ground
         if(!bIsOnGround) {
-            velocity.y += -gravityAccel * Time.deltaTime;
+            if(bGravityEnabled) {
+                velocity.y += -gravityAccel * Time.deltaTime;
+            }
         }
         else {
             numAirJumps = 0;
@@ -133,7 +152,7 @@ public class MovementController : MonoBehaviour {
         // did we hit (not ourselves)?
         if(hits.Length > 0) {
             for(int i = 0; i < hits.Length; i++) {
-                if(hits[i].gameObject != owner.gameObject) {
+                if(hits[i].gameObject != owner.gameObject && hits[i].gameObject.GetComponent<Actor>() == null) {
                     bIsOnGround = true;
                     return hits[i].gameObject;
                 }
@@ -175,7 +194,9 @@ public class MovementController : MonoBehaviour {
         // check the horizontal rays and limit horizontal velocity
         int idx = 0;
         foreach(RaycastHit2D ray in raysToCheck) {
-            if(ray && !ray.collider.isTrigger && ray.collider.gameObject != owner.gameObject) {
+            if(ray && !ray.collider.isTrigger && ray.collider.gameObject != owner.gameObject &&
+                !(!bCollideActors && ray.collider.gameObject.GetComponent<Actor>() != null)) {
+                
                 moveDelta.x = ((Vector3)ray.point - bottom).x;
 
                 moveDelta.x -= Mathf.Sign(moveDelta.x) * skinWidth;
@@ -232,7 +253,8 @@ public class MovementController : MonoBehaviour {
         // check the horizontal rays and limit horizontal velocity to move right up to the collision point
         int idx = 0;
         foreach(RaycastHit2D ray in raysToCheck) {
-            if(ray && !ray.collider.isTrigger && ray.collider.gameObject != owner.gameObject) {
+            if(ray && !ray.collider.isTrigger && ray.collider.gameObject != owner.gameObject &&
+                !(!bCollideActors && ray.collider.gameObject.GetComponent<Actor>() != null)) {
                 moveDelta.y = ((Vector3)ray.point - left).y;
 
                 moveDelta.y -= Mathf.Sign(moveDelta.y) * skinWidth;
@@ -264,6 +286,11 @@ public class MovementController : MonoBehaviour {
         else {
             // mostly horizontal surface
             velocity.x = 0.0f;
+        }
+
+        // inform all listeners
+        foreach(CollisionCallback callback in collisionListeners) {
+            callback(point, normal);
         }
     }
 
