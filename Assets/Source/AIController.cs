@@ -12,5 +12,4 @@ public class AIController : ActorController {
     protected override void Update() {
         base.Update();
     }
-
 }
